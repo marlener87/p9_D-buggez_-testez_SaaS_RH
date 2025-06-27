@@ -2,15 +2,17 @@
  * @jest-environment jsdom
  */
 
-import {screen, waitFor, getByTestId} from "@testing-library/dom"
+import {screen, waitFor, getByTestId} from "@testing-library/dom";
 import userEvent from "@testing-library/user-event";
-import BillsUI from "../views/BillsUI.js"
-import { bills } from "../fixtures/bills.js"
+import BillsUI from "../views/BillsUI.js";
+import { bills } from "../fixtures/bills.js";
+import Bills from "../containers/Bills.js";
 import { ROUTES_PATH} from "../constants/routes.js";
 import {localStorageMock} from "../__mocks__/localStorage.js";
 
 import router from "../app/Router.js";
 import store from "../__mocks__/store";
+//import mockStore from "../__mocks__/store";
 //jest.mock("../app/store", () => mockStore)
 
 // jest.mock("../app/store", () => ({
@@ -55,28 +57,43 @@ describe("Given I am connected as an employee", () => {
     });
 
     // TEST 3: le formulaire pour la nouvelle note de frais s'affiche
-    // describe("When I click on the 'Nouvelle note de frais' button", () => {
-    //   test("Then the NewBill form should appear", async () => {
-    //     console.log("Test démarré") // juste pour voir si ça s'affiche
-    //     // Injecte le HTML qui contient le bouton
-    //     document.body.innerHTML = BillsUI({ data: bills });
-    //     console.log(document.body.innerHTML)
+    describe("When I click on the 'Nouvelle note de frais' button", () => {
+      test("Then the NewBill form should appear", async () => {
+        // mock localStorage
+        Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+        window.localStorage.setItem('user', JSON.stringify({ type: 'Employee' }));
 
+        // simule le routeur
+        const root = document.createElement("div");
+        root.id = "root";
+        document.body.append(root);
+        router();
 
-    //     // bouton 'nouvelle note de frais'
-    //     const newBillButton = getByTestId(document.body, "btn-new-bill");
+        // navigate vers la page Bills
+        window.onNavigate(ROUTES_PATH.Bills);
 
-    //     // simuler la fonction de navigation (fonction qui sera appelée au clic)
-    //     const onNavigate = jest.fn(window.onNavigate(ROUTES_PATH.Bills))
+        // attend que l'UI se charge
+        await waitFor(() => screen.getByTestId("btn-new-bill"));
 
-    //     // simuler le click utilisateur sur le bouton
-    //     newBillButton.addEventListener("click", onNavigate);
-    //     userEvent.click(newBillButton);
+        // simulate instanciation Bills (comme l'app)
+        const billsContainer = new Bills({
+          document,
+          onNavigate,
+          store,
+          localStorage: window.localStorage,
+        });
 
-    //     // Assertions: vérifier si la nouvelle page de facture s'affiche correctement
-    //     expect(getByTestId(document.body, "send-new-bill")).toHaveTextContent("Envoyer une note de frais");
-    //   })
-    // });
+        const newBillButton = screen.getByTestId("btn-new-bill");
+        newBillButton.addEventListener("click", billsContainer.handleClickNewBill);
+
+        // simulate click
+        userEvent.click(newBillButton);
+
+        // check that NewBill page is rendered
+        await waitFor(() => screen.getByTestId("form-new-bill"));
+        expect(screen.getByTestId("form-new-bill")).toBeTruthy();
+      })
+    });
 
     // TEST 4: integrations test GET (Bills)
     test("Fetches bills from mock API GET", async()=> 
